@@ -11,6 +11,11 @@ const generateToken = (id, role) => {
     });
 };
 
+const generateUniqueId = (prefix) => {
+    const uniqueSuffix = Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+    return prefix + uniqueSuffix.toUpperCase();
+};
+
 exports.registerVoter = async (req, res) => {
     const { name, email, password } = req.body;
     try {
@@ -19,16 +24,9 @@ exports.registerVoter = async (req, res) => {
             return res.status(400).json({ message: 'Voter with this email already exists' });
         }
 
-        const uniqueSuffix = Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
-        const voterId = 'VTR-' + uniqueSuffix.toUpperCase();
-
-        voter = new Voter({
-            voterId,
-            name,
-            email,
-            password,
-        });
-
+        const voterId = generateUniqueId('VTR-');
+        
+        voter = new Voter({ voterId, name, email, password });
         await voter.save();
 
         const token = generateToken(voter.id, 'voter');
@@ -37,8 +35,25 @@ exports.registerVoter = async (req, res) => {
             message: 'Voter registered successfully',
             voterId: voter.voterId,
             token,
+            name: voter.name,
+            email: voter.email,
+            hasVoted: voter.hasVoted
         });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+};
 
+exports.loginVoter = async (req, res) => {
+    const { voterId, password } = req.body;
+    try {
+        let voter = await Voter.findOne({ voterId });
+        if (!voter) return res.status(400).json({ message: 'Invalid Voter ID or password' });
+        const isMatch = await voter.matchPassword(password);
+        if (!isMatch) return res.status(400).json({ message: 'Invalid Voter ID or password' });
+        const token = generateToken(voter.id, 'voter');
+        res.json({ message: 'Logged in successfully', token, voterId: voter.voterId, name: voter.name, email: voter.email, hasVoted: voter.hasVoted });
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');
@@ -53,20 +68,9 @@ exports.registerCandidate = async (req, res) => {
             return res.status(400).json({ message: 'Candidate with this email already exists' });
         }
 
-        const uniqueSuffix = Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
-        const candidateId = 'CND-' + uniqueSuffix.toUpperCase();
+        const candidateId = generateUniqueId('CND-');
 
-        candidate = new Candidate({
-            candidateId,
-            name,
-            email,
-            password,
-            pitch,
-            tagline,
-            isApproved: false,
-            isRejected: false,
-        });
-
+        candidate = new Candidate({ candidateId, name, email, password, pitch, tagline });
         await candidate.save();
 
         const token = generateToken(candidate.id, 'candidate');
@@ -75,31 +79,10 @@ exports.registerCandidate = async (req, res) => {
             message: 'Candidate registered successfully. Awaiting admin approval.',
             candidateId: candidate.candidateId,
             token,
+            name: candidate.name,
+            email: candidate.email,
+            isApproved: candidate.isApproved
         });
-
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
-    }
-};
-
-exports.loginVoter = async (req, res) => {
-    const { voterId, password } = req.body;
-    try {
-        let voter = await Voter.findOne({ voterId });
-        if (!voter) {
-            return res.status(400).json({ message: 'Invalid Voter ID or password' });
-        }
-
-        const isMatch = await voter.matchPassword(password);
-        if (!isMatch) {
-            return res.status(400).json({ message: 'Invalid Voter ID or password' });
-        }
-
-        const token = generateToken(voter.id, 'voter');
-
-        res.json({ message: 'Logged in successfully', token, voterId: voter.voterId });
-
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');
@@ -110,23 +93,12 @@ exports.loginCandidate = async (req, res) => {
     const { candidateId, password } = req.body;
     try {
         let candidate = await Candidate.findOne({ candidateId });
-        if (!candidate) {
-            return res.status(400).json({ message: 'Invalid Candidate ID or password' });
-        }
-
+        if (!candidate) return res.status(400).json({ message: 'Invalid Candidate ID or password' });
         const isMatch = await candidate.matchPassword(password);
-        if (!isMatch) {
-            return res.status(400).json({ message: 'Invalid Candidate ID or password' });
-        }
-
-        if (!candidate.isApproved) {
-            return res.status(403).json({ message: 'Your candidate profile is pending admin approval.' });
-        }
-
+        if (!isMatch) return res.status(400).json({ message: 'Invalid Candidate ID or password' });
+        if (!candidate.isApproved) return res.status(403).json({ message: 'Your candidate profile is pending admin approval.' });
         const token = generateToken(candidate.id, 'candidate');
-
-        res.json({ message: 'Logged in successfully', token, candidateId: candidate.candidateId });
-
+        res.json({ message: 'Logged in successfully', token, candidateId: candidate.candidateId, name: candidate.name, email: candidate.email, isApproved: candidate.isApproved, votes: candidate.votes });
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');
@@ -137,26 +109,16 @@ exports.loginAdmin = async (req, res) => {
     const { email, password } = req.body;
     try {
         let admin = await Admin.findOne({ email });
-
         if (!admin) {
             console.log('No admin found, creating default admin...');
-            admin = new Admin({
-                email: process.env.ADMIN_EMAIL,
-                password: process.env.ADMIN_PASSWORD, 
-            });
+            admin = new Admin({ email: process.env.ADMIN_EMAIL, password: process.env.ADMIN_PASSWORD });
             await admin.save();
             console.log('Default admin created. Use credentials from .env file.');
         }
-
         const isMatch = await admin.matchPassword(password);
-        if (!isMatch) {
-            return res.status(400).json({ message: 'Invalid Admin credentials' });
-        }
-
+        if (!isMatch) return res.status(400).json({ message: 'Invalid Admin credentials' });
         const token = generateToken(admin.id, 'admin');
-
-        res.json({ message: 'Logged in successfully', token });
-
+        res.json({ message: 'Logged in successfully', token, email: admin.email });
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');
