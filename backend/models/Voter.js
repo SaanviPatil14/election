@@ -1,3 +1,4 @@
+// backend/models/Voter.js
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
@@ -24,11 +25,11 @@ const VoterSchema = new mongoose.Schema({
         required: true,
         trim: true,
     },
-    hasVoted: { // New field to track if voter has cast a vote
+    hasVoted: {
         type: Boolean,
         default: false,
     },
-    votedCandidate: { // Optional: to store which candidate they voted for
+    votedCandidate: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Candidate',
         default: null,
@@ -39,12 +40,18 @@ const VoterSchema = new mongoose.Schema({
     },
 });
 
-VoterSchema.pre('save', async function (next) {
-    if (this.isModified('password')) { 
+// Hash password before saving
+VoterSchema.pre('save', async function(next) {
+    if (!this.isModified('password')) {
+        return next();
+    }
+    try {
         const salt = await bcrypt.genSalt(10);
         this.password = await bcrypt.hash(this.password, salt);
+        next();
+    } catch (err) {
+        return next(err);
     }
-    next();
 });
 
 VoterSchema.methods.matchPassword = async function (enteredPassword) {

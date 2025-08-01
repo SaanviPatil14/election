@@ -1,3 +1,4 @@
+// backend/models/Candidate.js
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
@@ -37,7 +38,7 @@ const CandidateSchema = new mongoose.Schema({
         type: Boolean,
         default: false,
     },
-    isRejected: { // <-- NEW FIELD
+    isRejected: {
         type: Boolean,
         default: false,
     },
@@ -49,20 +50,22 @@ const CandidateSchema = new mongoose.Schema({
         type: Number,
         default: 0,
     }
-    // You can add more candidate-specific fields like party, symbol etc.
 });
 
 // Hash password before saving
-CandidateSchema.pre('save', async function (next) {
+CandidateSchema.pre('save', async function(next) {
     if (!this.isModified('password')) {
-        next();
+        return next();
     }
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
+    try {
+        const salt = await bcrypt.genSalt(10);
+        this.password = await bcrypt.hash(this.password, salt);
+        next();
+    } catch (err) {
+        return next(err);
+    }
 });
 
-// Method to compare entered password with hashed password
 CandidateSchema.methods.matchPassword = async function (enteredPassword) {
     return await bcrypt.compare(enteredPassword, this.password);
 };
