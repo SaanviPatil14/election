@@ -17,7 +17,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/voters', require('./routes/voter'));
 app.use('/api/candidates', require('./routes/candidate'));
 app.use('/api/admin', require('./routes/admin'));
-app.use('/api/results', require('./routes/results')); // <-- ADD THIS LINE
+app.use('/api/results', require('./routes/results'));
 
 const PORT = process.env.PORT || 5000;
 

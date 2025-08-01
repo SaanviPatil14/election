@@ -19,7 +19,8 @@ exports.registerVoter = async (req, res) => {
             return res.status(400).json({ message: 'Voter with this email already exists' });
         }
 
-        const voterId = 'VTR-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+        const uniqueSuffix = Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+        const voterId = 'VTR-' + uniqueSuffix.toUpperCase();
 
         voter = new Voter({
             voterId,
@@ -35,6 +36,44 @@ exports.registerVoter = async (req, res) => {
         res.status(201).json({
             message: 'Voter registered successfully',
             voterId: voter.voterId,
+            token,
+        });
+
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+};
+
+exports.registerCandidate = async (req, res) => {
+    const { name, email, password, pitch, tagline } = req.body;
+    try {
+        let candidate = await Candidate.findOne({ email });
+        if (candidate) {
+            return res.status(400).json({ message: 'Candidate with this email already exists' });
+        }
+
+        const uniqueSuffix = Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+        const candidateId = 'CND-' + uniqueSuffix.toUpperCase();
+
+        candidate = new Candidate({
+            candidateId,
+            name,
+            email,
+            password,
+            pitch,
+            tagline,
+            isApproved: false,
+            isRejected: true,
+        });
+
+        await candidate.save();
+
+        const token = generateToken(candidate.id, 'candidate');
+
+        res.status(201).json({
+            message: 'Candidate registered successfully. Awaiting admin approval.',
+            candidateId: candidate.candidateId,
             token,
         });
 
@@ -60,42 +99,6 @@ exports.loginVoter = async (req, res) => {
         const token = generateToken(voter.id, 'voter');
 
         res.json({ message: 'Logged in successfully', token, voterId: voter.voterId });
-
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
-    }
-};
-
-exports.registerCandidate = async (req, res) => {
-    const { name, email, password, pitch, tagline } = req.body;
-    try {
-        let candidate = await Candidate.findOne({ email });
-        if (candidate) {
-            return res.status(400).json({ message: 'Candidate with this email already exists' });
-        }
-
-        const candidateId = 'CND-' + Math.random().toString(36).substr(2, 9).toUpperCase();
-
-        candidate = new Candidate({
-            candidateId,
-            name,
-            email,
-            password,
-            pitch,
-            tagline,
-            isApproved: false, 
-        });
-
-        await candidate.save();
-
-        const token = generateToken(candidate.id, 'candidate');
-
-        res.status(201).json({
-            message: 'Candidate registered successfully. Awaiting admin approval.',
-            candidateId: candidate.candidateId,
-            token,
-        });
 
     } catch (err) {
         console.error(err.message);
