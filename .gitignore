@@ -1,0 +1,37 @@
+# Git Ignore for MERN Stack Project
+
+# Node.js
+# ========================
+# Ignore node_modules for both frontend and backend
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+
+# Production build files
+# Ignore the frontend's build folder
+frontend/build/
+
+# Ignore the backend's build folder (if you use one)
+backend/dist/
+backend/build/
+
+# Environment files
+# ========================
+# Contains sensitive information like database URLs and secret keys
+# These should NEVER be committed to version control
+.env
+backend/.env
+frontend/.env.development
+frontend/.env.production
+frontend/.env.local
+
+# IDE and OS files
+# ========================
+# VS Code
+.vscode/
+
+# Mac
+.DS_Store
+
+# Windows
+Thumbs.db
