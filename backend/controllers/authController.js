@@ -64,7 +64,7 @@ exports.registerCandidate = async (req, res) => {
             pitch,
             tagline,
             isApproved: false,
-            isRejected: true,
+            isRejected: false,
         });
 
         await candidate.save();
